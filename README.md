@@ -8,6 +8,12 @@ The problem it solves: every project that deploys to k3s requires the same boile
 
 ---
 
+## Demo
+
+![k3s-dev demo](docs/demo.gif)
+
+---
+
 ## Install
 
 ```bash

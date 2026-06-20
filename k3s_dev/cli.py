@@ -320,6 +320,67 @@ def la_remove(name: str) -> None:
     console.print(f"[green]LaunchAgent dev.k3s.{name} removed[/green]")
 
 
+# ── demo ─────────────────────────────────────────────────────────────────────
+
+@app.command()
+def demo() -> None:
+    """Simulate a full init + status run for demos and screenshots (no cluster needed)."""
+    import time
+
+    def _sleep(s: float) -> None:
+        time.sleep(s)
+
+    console.print(Panel("[bold]Pre-flight checks[/bold]", expand=False))
+    _sleep(0.3)
+    console.print("  [green]✓[/green] kubectl found")
+    _sleep(0.2)
+    console.print("  [green]✓[/green] cluster reachable")
+    _sleep(0.2)
+    console.print("  [yellow]![/yellow] kubeseal not found — install with: brew install kubeseal")
+
+    console.print("\n[bold]Installing Sealed Secrets v0.27.3...[/bold]")
+    _sleep(0.4)
+    console.print("Downloading Sealed Secrets v0.27.3...")
+    _sleep(1.2)
+    console.print("[green]Sealed Secrets v0.27.3 installed in kube-system[/green]")
+
+    console.print("\n[bold]Creating namespace 'myapp'...[/bold]")
+    _sleep(0.3)
+
+    console.print("\n[bold]Provisioning Postgres 'myapp'...[/bold]")
+    _sleep(0.3)
+    console.print("  namespace/myapp configured")
+    console.print("  persistentvolumeclaim/myapp-data created")
+    console.print("  secret/myapp-postgres-secret created")
+    console.print("  deployment.apps/myapp created")
+    console.print("  service/myapp created")
+    _sleep(0.3)
+    console.print("[green]Password stored in Keychain (k3s-dev / postgres/myapp)[/green]")
+    _sleep(0.2)
+
+    console.print(Panel(
+        "[bold]Local:[/bold]    postgresql+psycopg2://myapp:••••••••@localhost:30432/myapp\n"
+        "[bold]Cluster:[/bold]  postgresql+psycopg2://myapp:••••••••@myapp:5432/myapp\n"
+        "[bold]Secret:[/bold]   myapp-postgres-secret  (keys: password, db_url, local_url)",
+        title="Postgres 'myapp'",
+        expand=False,
+    ))
+
+    console.print("\n[bold green]✓ k3s dev stack initialized[/bold green]\n")
+    _sleep(0.6)
+
+    # Status table
+    table = Table(title="k3s-dev status", show_lines=True)
+    table.add_column("Component", style="bold")
+    table.add_column("Status")
+    table.add_column("Details")
+    table.add_row("Cluster", "[green]reachable[/green]", "")
+    table.add_row("Sealed Secrets", "[green]running[/green]", "v0.27.3")
+    table.add_row("Namespace/myapp", "[green]tracked[/green]", "")
+    table.add_row("Postgres/myapp", "[green]provisioned[/green]", "myapp • localhost:30432 • myapp@myapp")
+    console.print(table)
+
+
 # ── helpers ──────────────────────────────────────────────────────────────────
 
 def _print_pg(name: str, instance: PostgresInstance) -> None:
