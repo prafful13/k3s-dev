@@ -1,0 +1,15 @@
+load("@rules_python//python:defs.bzl", "py_binary")
+load("@pip//:requirements.bzl", "requirement")
+
+py_binary(
+    name = "k3s_dev",
+    srcs = ["k3s_dev/cli.py"],
+    main = "k3s_dev/cli.py",
+    deps = [
+        "//k3s_dev:lib",
+        requirement("typer"),
+        requirement("rich"),
+        requirement("keyring"),
+        requirement("httpx"),
+    ],
+)
