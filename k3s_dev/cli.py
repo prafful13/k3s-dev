@@ -12,6 +12,7 @@ from rich.table import Table
 
 from k3s_dev import checks, launch_agent, namespace, sealed_secrets
 from k3s_dev import postgres as pg
+from k3s_dev import project as proj
 from k3s_dev.state import PostgresInstance, State
 
 console = Console()
@@ -24,11 +25,13 @@ ns_app = typer.Typer(help="Manage Kubernetes namespaces", no_args_is_help=True)
 pg_app = typer.Typer(help="Manage Postgres instances", no_args_is_help=True)
 ss_app = typer.Typer(help="Manage Sealed Secrets controller", no_args_is_help=True)
 la_app = typer.Typer(help="Manage macOS LaunchAgents", no_args_is_help=True)
+project_app = typer.Typer(help="Convention linter for all-src projects", no_args_is_help=True)
 
 app.add_typer(ns_app, name="namespace")
 app.add_typer(pg_app, name="postgres")
 app.add_typer(ss_app, name="sealed-secrets")
 app.add_typer(la_app, name="launch-agent")
+app.add_typer(project_app, name="project")
 
 
 # ── top-level ────────────────────────────────────────────────────────────────
@@ -68,7 +71,8 @@ def init(
 
 @app.command()
 def status() -> None:
-    """Show status of all managed components."""
+    """Show status of all managed components (cross-checks live cluster state)."""
+    from k3s_dev import kubectl as kctl
     state = State.load()
     table = Table(title="k3s-dev status", show_lines=True)
     table.add_column("Component", style="bold")
@@ -92,13 +96,25 @@ def status() -> None:
         )
 
     for ns in state.namespaces:
-        table.add_row(f"Namespace/{ns}", "[green]tracked[/green]", "")
+        if cluster_ok:
+            r2 = subprocess.run(["kubectl", "get", "namespace", ns], capture_output=True)
+            ns_status = "[green]exists[/green]" if r2.returncode == 0 else "[red]MISSING in cluster[/red]"
+        else:
+            ns_status = "[dim]cluster unreachable[/dim]"
+        table.add_row(f"Namespace/{ns}", ns_status, "")
 
     for name, inst in state.postgres_instances.items():
         detail = f"{inst.namespace} • localhost:{inst.node_port} • {inst.user}@{inst.db}"
         if inst.backup:
-            detail += " • backup enabled"
-        table.add_row(f"Postgres/{name}", "[green]provisioned[/green]", detail)
+            detail += " • backup"
+        if cluster_ok:
+            live = kctl.exists("deployment", name, inst.namespace)
+            pg_status = "[green]running[/green]" if live else "[red]MISSING in cluster[/red]"
+            if not live:
+                detail += " — run 'postgres add' to recreate"
+        else:
+            pg_status = "[dim]cluster unreachable[/dim]"
+        table.add_row(f"Postgres/{name}", pg_status, detail)
 
     for name in launch_agent.list_agents():
         table.add_row(f"LaunchAgent/{name}", launch_agent.agent_status(name), "")
@@ -169,11 +185,19 @@ def pg_add(
     backup: Annotated[bool, typer.Option("--backup/--no-backup")] = False,
     backup_schedule: Annotated[str, typer.Option("--backup-schedule")] = "0 5 * * *",
 ) -> None:
-    """Provision a new Postgres instance."""
+    """Provision a new Postgres instance (idempotent — recreates if state exists but cluster resources are gone)."""
+    from k3s_dev import kubectl as kctl
     state = State.load()
     if name in state.postgres_instances:
-        console.print(f"[yellow]Postgres '{name}' already exists — use 'remove' first[/yellow]")
-        raise typer.Exit(1)
+        inst = state.postgres_instances[name]
+        # Check if the deployment actually exists in the cluster
+        if kctl.exists("deployment", name, inst.namespace):
+            console.print(f"[yellow]Postgres '{name}' already exists and is running — use 'remove' first to reprovision[/yellow]")
+            _print_pg(name, inst)
+            raise typer.Exit(0)
+        console.print(f"[yellow]Postgres '{name}' in state.json but not found in cluster — recreating...[/yellow]")
+        del state.postgres_instances[name]
+
     instance, _ = pg.add(
         name, namespace_name, state,
         user=user, db=db, secret_name=secret_name,
@@ -379,6 +403,36 @@ def demo() -> None:
     table.add_row("Namespace/myapp", "[green]tracked[/green]", "")
     table.add_row("Postgres/myapp", "[green]provisioned[/green]", "myapp • localhost:30432 • myapp@myapp")
     console.print(table)
+
+
+# ── project ──────────────────────────────────────────────────────────────────
+
+@project_app.command("check")
+def project_check(
+    path: Annotated[str, typer.Argument()] = ".",
+    all_projects: Annotated[bool, typer.Option("--all", help="Check all projects under the all-src workspace")] = False,
+) -> None:
+    """Lint a project directory against all-src conventions."""
+    from pathlib import Path as P
+    import sys
+
+    workspace = P("/Users/prafful/Documents/all-src")
+    if all_projects:
+        project_dirs = [d for d in workspace.iterdir() if d.is_dir() and not d.name.startswith(".")]
+    else:
+        project_dirs = [P(path).resolve()]
+
+    total_violations = 0
+    for project_dir in sorted(project_dirs):
+        violations = proj.check(project_dir)
+        code = proj.report(project_dir, violations)
+        total_violations += len(violations)
+
+    if all_projects and total_violations > 0:
+        console.print(f"\n[red bold]{total_violations} total violation(s) across workspace[/red bold]")
+        raise typer.Exit(1)
+    elif total_violations > 0:
+        raise typer.Exit(1)
 
 
 # ── helpers ──────────────────────────────────────────────────────────────────

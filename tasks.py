@@ -29,3 +29,9 @@ def build(c):
 @task
 def run(c, args="--help"):
     c.run(f"uv run k3s-dev {args}", pty=True)
+
+
+@task
+def check(c, path="."):
+    """Run project convention linter against a directory (default: current)."""
+    c.run(f"uv run k3s-dev project check {path}")

@@ -1,0 +1,63 @@
+flowchart TB
+    subgraph cli["k3s-dev CLI — Typer app"]
+        INIT["init<br/>bootstrap full dev stack"]
+        STATUS["status<br/>show all component states"]
+        TEARDOWN["teardown<br/>remove all Postgres instances"]
+
+        subgraph ns["namespace sub-app"]
+            NS_ADD["namespace add"]
+            NS_LIST["namespace list"]
+            NS_RM["namespace remove"]
+        end
+
+        subgraph pg["postgres sub-app"]
+            PG_ADD["postgres add<br/>PVC + Deployment + Service + Secret"]
+            PG_LIST["postgres list"]
+            PG_RM["postgres remove"]
+            PG_CONN["postgres connect<br/>print URLs"]
+            PG_BK["postgres backup<br/>trigger CronJob"]
+        end
+
+        subgraph ss["sealed-secrets sub-app"]
+            SS_INST["sealed-secrets install"]
+            SS_UP["sealed-secrets upgrade"]
+            SS_STAT["sealed-secrets status"]
+        end
+
+        subgraph la["launch-agent sub-app"]
+            LA_ADD["launch-agent add<br/>register macOS LaunchAgent"]
+            LA_LIST["launch-agent list"]
+            LA_RM["launch-agent remove"]
+        end
+    end
+
+    subgraph modules["Internal Modules"]
+        CHECKS["checks.py<br/>preflight: kubectl + cluster"]
+        NS_MOD["namespace.py<br/>kubectl apply namespace"]
+        PG_MOD["postgres.py<br/>generate + apply k8s manifests<br/>store password in Keychain"]
+        SEAL_MOD["sealed_secrets.py<br/>kubectl apply controller YAML"]
+        LA_MOD["launch_agent.py<br/>write + load plist to ~/Library/LaunchAgents"]
+        STATE["state.py<br/>State JSON — tracks namespaces,<br/>Postgres instances, SS version"]
+    end
+
+    subgraph infra["Local Infrastructure"]
+        KC["macOS Keychain<br/>Postgres passwords"]
+        K3S["k3s Cluster<br/>via Rancher Desktop"]
+        PLIST["~/Library/LaunchAgents/<br/>crash-restart services"]
+    end
+
+    INIT --> CHECKS --> ns & pg & ss
+    STATUS --> STATE
+    cli --> modules
+    PG_MOD -->|"store password"| KC
+    NS_MOD & PG_MOD & SEAL_MOD -->|"kubectl apply"| K3S
+    LA_MOD -->|"launchctl load"| PLIST
+    STATE -->|"reads/writes"| STATE
+
+    classDef cmd fill:#e3f2fd,stroke:#1565c0,color:#333
+    classDef mod fill:#e8f5e9,stroke:#2e7d32,color:#333
+    classDef infra fill:#fff8e1,stroke:#f9a825,color:#333
+
+    class INIT,STATUS,TEARDOWN,NS_ADD,NS_LIST,NS_RM,PG_ADD,PG_LIST,PG_RM,PG_CONN,PG_BK,SS_INST,SS_UP,SS_STAT,LA_ADD,LA_LIST,LA_RM cmd
+    class CHECKS,NS_MOD,PG_MOD,SEAL_MOD,LA_MOD,STATE mod
+    class KC,K3S,PLIST infra

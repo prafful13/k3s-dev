@@ -26,3 +26,13 @@ def apply(manifest: str) -> subprocess.CompletedProcess:
         capture_output=True,
         check=True,
     )
+
+
+def exists(kind: str, name: str, namespace: str) -> bool:
+    """Return True if the k8s resource exists in the cluster."""
+    r = subprocess.run(
+        ["kubectl", "get", kind, name, "-n", namespace],
+        capture_output=True,
+        text=True,
+    )
+    return r.returncode == 0
