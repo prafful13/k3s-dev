@@ -1,4 +1,5 @@
 """macOS LaunchAgent management for non-k8s background services."""
+
 from __future__ import annotations
 
 import plistlib
@@ -39,8 +40,7 @@ def remove(name: str) -> None:
 
 def list_agents() -> list[str]:
     return [
-        p.stem.removeprefix(f"{_PREFIX}.")
-        for p in _LAUNCH_AGENTS_DIR.glob(f"{_PREFIX}.*.plist")
+        p.stem.removeprefix(f"{_PREFIX}.") for p in _LAUNCH_AGENTS_DIR.glob(f"{_PREFIX}.*.plist")
     ]
 
 

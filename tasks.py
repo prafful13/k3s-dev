@@ -1,4 +1,5 @@
 """Task runner for k3s-dev. Usage: uv run inv <task>"""
+
 from __future__ import annotations
 
 from invoke import task
@@ -32,6 +33,14 @@ def run(c, args="--help"):
 
 
 @task
-def check(c, path="."):
-    """Run project convention linter against a directory (default: current)."""
+def check(c):
+    """Ruff lint + format check + pytest. Required gate before any release."""
+    c.run("uv run ruff check .", echo=True)
+    c.run("uv run ruff format --check .", echo=True)
+    c.run("uv run pytest -x -q --tb=short", echo=True)
+
+
+@task(name="project-check")
+def project_check(c, path="."):
+    """Run k3s-dev convention linter against a project directory (default: current)."""
     c.run(f"uv run k3s-dev project check {path}")

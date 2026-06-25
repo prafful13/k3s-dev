@@ -1,4 +1,5 @@
 """Postgres instance provisioning on k3s."""
+
 from __future__ import annotations
 
 import base64
@@ -51,7 +52,9 @@ spec:
 """
 
 
-def _secret_manifest(name: str, ns: str, secret_name: str, user: str, db: str, pw: str, node_port: int) -> str:
+def _secret_manifest(
+    name: str, ns: str, secret_name: str, user: str, db: str, pw: str, node_port: int
+) -> str:
     cluster_url = f"postgresql+psycopg2://{user}:{pw}@{name}:{5432}/{db}"
     local_url = f"postgresql+psycopg2://{user}:{pw}@localhost:{node_port}/{db}"
     return f"""\
@@ -164,7 +167,9 @@ spec:
 """
 
 
-def _backup_cronjob_manifest(name: str, ns: str, secret_name: str, user: str, db: str, schedule: str) -> str:
+def _backup_cronjob_manifest(
+    name: str, ns: str, secret_name: str, user: str, db: str, schedule: str
+) -> str:
     return f"""\
 apiVersion: batch/v1
 kind: CronJob
@@ -263,8 +268,12 @@ def remove(name: str, instance: PostgresInstance) -> None:
     ]:
         kubectl.run(["delete", kind, resource_name, "-n", ns, "--ignore-not-found"], check=False)
     if instance.backup:
-        kubectl.run(["delete", "cronjob", f"{name}-backup", "-n", ns, "--ignore-not-found"], check=False)
-        kubectl.run(["delete", "pvc", f"{name}-backup", "-n", ns, "--ignore-not-found"], check=False)
+        kubectl.run(
+            ["delete", "cronjob", f"{name}-backup", "-n", ns, "--ignore-not-found"], check=False
+        )
+        kubectl.run(
+            ["delete", "pvc", f"{name}-backup", "-n", ns, "--ignore-not-found"], check=False
+        )
     try:
         keyring.delete_password(_KEYCHAIN_SERVICE, f"postgres/{name}")
     except Exception:
@@ -273,7 +282,9 @@ def remove(name: str, instance: PostgresInstance) -> None:
 
 def local_url(name: str, instance: PostgresInstance) -> str:
     pw = keyring.get_password(_KEYCHAIN_SERVICE, f"postgres/{name}") or "<password>"
-    return f"postgresql+psycopg2://{instance.user}:{pw}@localhost:{instance.node_port}/{instance.db}"
+    return (
+        f"postgresql+psycopg2://{instance.user}:{pw}@localhost:{instance.node_port}/{instance.db}"
+    )
 
 
 def cluster_url(name: str, instance: PostgresInstance) -> str:

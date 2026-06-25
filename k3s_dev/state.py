@@ -1,4 +1,5 @@
 """Persistent state tracking for provisioned resources."""
+
 from __future__ import annotations
 
 import json
@@ -32,10 +33,7 @@ class State:
         if not STATE_FILE.exists():
             return cls()
         raw = json.loads(STATE_FILE.read_text())
-        instances = {
-            k: PostgresInstance(**v)
-            for k, v in raw.get("postgres_instances", {}).items()
-        }
+        instances = {k: PostgresInstance(**v) for k, v in raw.get("postgres_instances", {}).items()}
         return cls(
             initialized=raw.get("initialized", False),
             sealed_secrets_version=raw.get("sealed_secrets_version"),
@@ -45,12 +43,16 @@ class State:
 
     def save(self) -> None:
         STATE_DIR.mkdir(exist_ok=True)
-        STATE_FILE.write_text(json.dumps(
-            {
-                "initialized": self.initialized,
-                "sealed_secrets_version": self.sealed_secrets_version,
-                "namespaces": self.namespaces,
-                "postgres_instances": {k: asdict(v) for k, v in self.postgres_instances.items()},
-            },
-            indent=2,
-        ))
+        STATE_FILE.write_text(
+            json.dumps(
+                {
+                    "initialized": self.initialized,
+                    "sealed_secrets_version": self.sealed_secrets_version,
+                    "namespaces": self.namespaces,
+                    "postgres_instances": {
+                        k: asdict(v) for k, v in self.postgres_instances.items()
+                    },
+                },
+                indent=2,
+            )
+        )

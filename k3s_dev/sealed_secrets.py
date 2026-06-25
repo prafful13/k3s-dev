@@ -1,4 +1,5 @@
 """Bitnami Sealed Secrets controller management."""
+
 from __future__ import annotations
 
 import httpx
@@ -10,8 +11,7 @@ console = Console()
 
 DEFAULT_VERSION = "v0.27.3"
 _MANIFEST_URL = (
-    "https://github.com/bitnami-labs/sealed-secrets/releases/download"
-    "/{version}/controller.yaml"
+    "https://github.com/bitnami-labs/sealed-secrets/releases/download/{version}/controller.yaml"
 )
 
 
@@ -27,9 +27,13 @@ def install(version: str = DEFAULT_VERSION) -> None:
 def ready_replicas() -> int:
     r = kubectl.run(
         [
-            "get", "deployment", "sealed-secrets-controller",
-            "-n", "kube-system",
-            "-o", "jsonpath={.status.readyReplicas}",
+            "get",
+            "deployment",
+            "sealed-secrets-controller",
+            "-n",
+            "kube-system",
+            "-o",
+            "jsonpath={.status.readyReplicas}",
         ],
         capture=True,
         check=False,

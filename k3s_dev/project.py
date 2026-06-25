@@ -1,8 +1,8 @@
 """Convention linter for all-src projects."""
+
 from __future__ import annotations
 
 import re
-import subprocess
 from pathlib import Path
 
 from rich.console import Console
@@ -47,7 +47,7 @@ def _has_divergence(claude_md: str, key: str) -> bool:
     m = _DIVERGENCE_HEADING.search(claude_md)
     if not m:
         return False
-    after = claude_md[m.end():]
+    after = claude_md[m.end() :]
     next_h2 = re.search(r"^##\s", after, re.MULTILINE)
     divergence_block = after[: next_h2.start()] if next_h2 else after
     return key.lower() in divergence_block.lower()
@@ -59,7 +59,12 @@ def check(path: Path) -> list[Violation]:
 
     # ── CLAUDE.md ──────────────────────────────────────────────────────────────
     if claude_md is None:
-        violations.append(Violation("CLAUDE.md", "CLAUDE.md is missing — create it from the canonical schema in global CLAUDE.md §5.4"))
+        violations.append(
+            Violation(
+                "CLAUDE.md",
+                "CLAUDE.md is missing — create it from the canonical schema in global CLAUDE.md §5.4",
+            )
+        )
         return violations  # can't check sections without the file
 
     for section in _REQUIRED_SECTIONS:
@@ -74,7 +79,12 @@ def check(path: Path) -> list[Violation]:
     else:
         content = pyproject.read_text()
         if "requires-python" not in content:
-            violations.append(Violation("Python", "pyproject.toml has no requires-python — add requires-python = '>=3.13'"))
+            violations.append(
+                Violation(
+                    "Python",
+                    "pyproject.toml has no requires-python — add requires-python = '>=3.13'",
+                )
+            )
         if "uv" not in content and "hatchling" not in content and "setuptools" not in content:
             violations.append(Violation("Python", "pyproject.toml has no recognized build backend"))
 
@@ -84,13 +94,19 @@ def check(path: Path) -> list[Violation]:
         if _has_divergence(claude_md, "Makefile") or _has_divergence(claude_md, "tasks.py"):
             pass  # declared divergence
         else:
-            violations.append(Violation("Tasks", "tasks.py missing — create it with standard invoke tasks"))
+            violations.append(
+                Violation("Tasks", "tasks.py missing — create it with standard invoke tasks")
+            )
     else:
         content = tasks_py.read_text()
         for task_name in _REQUIRED_TASKS:
             # match @task\ndef <name>( or name="<name>"
-            if not re.search(rf'(def {re.escape(task_name)}\(|name="{re.escape(task_name)}")', content):
-                violations.append(Violation("Tasks", f"tasks.py missing standard task: {task_name}"))
+            if not re.search(
+                rf'(def {re.escape(task_name)}\(|name="{re.escape(task_name)}")', content
+            ):
+                violations.append(
+                    Violation("Tasks", f"tasks.py missing standard task: {task_name}")
+                )
 
     # ── MODULE.bazel ───────────────────────────────────────────────────────────
     module_bazel = path / "MODULE.bazel"
@@ -99,9 +115,13 @@ def check(path: Path) -> list[Violation]:
         if _has_divergence(claude_md, "Bazel") or _has_divergence(claude_md, "MODULE.bazel"):
             pass  # declared divergence
         else:
-            violations.append(Violation("Bazel", "MODULE.bazel missing — use Bzlmod, never legacy WORKSPACE"))
+            violations.append(
+                Violation("Bazel", "MODULE.bazel missing — use Bzlmod, never legacy WORKSPACE")
+            )
     if workspace.exists():
-        violations.append(Violation("Bazel", "Legacy WORKSPACE file found — migrate to MODULE.bazel (Bzlmod)"))
+        violations.append(
+            Violation("Bazel", "Legacy WORKSPACE file found — migrate to MODULE.bazel (Bzlmod)")
+        )
 
     # ── from __future__ import annotations ────────────────────────────────────
     for py_file in path.rglob("*.py"):
@@ -110,13 +130,21 @@ def check(path: Path) -> list[Violation]:
         content = py_file.read_text(errors="replace")
         if "from __future__ import annotations" not in content:
             rel = py_file.relative_to(path)
-            violations.append(Violation("Python", f"{rel}: missing 'from __future__ import annotations'", fixable=True))
+            violations.append(
+                Violation(
+                    "Python", f"{rel}: missing 'from __future__ import annotations'", fixable=True
+                )
+            )
 
     # ── unpinned image tags ───────────────────────────────────────────────────
     for dockerfile in path.glob("Dockerfile*"):
         content = dockerfile.read_text(errors="replace")
         if _LATEST_RE.search(content):
-            violations.append(Violation("Docker", f"{dockerfile.name}: unpinned image tag (:latest or untagged FROM)"))
+            violations.append(
+                Violation(
+                    "Docker", f"{dockerfile.name}: unpinned image tag (:latest or untagged FROM)"
+                )
+            )
 
     for yaml_file in (path / "k8s").glob("**/*.yaml") if (path / "k8s").exists() else []:
         content = yaml_file.read_text(errors="replace")

@@ -1,4 +1,5 @@
 """Pre-flight environment checks."""
+
 from __future__ import annotations
 
 import shutil
@@ -31,6 +32,8 @@ def preflight() -> bool:
     if shutil.which("kubeseal"):
         console.print("  [green]✓[/green] kubeseal found")
     else:
-        console.print("  [yellow]![/yellow] kubeseal not found — install with: brew install kubeseal")
+        console.print(
+            "  [yellow]![/yellow] kubeseal not found — install with: brew install kubeseal"
+        )
 
     return ok

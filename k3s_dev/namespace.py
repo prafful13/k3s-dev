@@ -1,4 +1,5 @@
 """Kubernetes namespace management."""
+
 from __future__ import annotations
 
 from k3s_dev import kubectl
